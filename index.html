@@ -37,6 +37,8 @@
   button:hover{background:#f1f4f9}
   button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
   button.primary:hover{background:var(--accent-d)}
+  button:active{transform:translateY(1px)}
+  button.flash{background:#1f7a48;border-color:#1f7a48;color:#fff}
 
   table{border-collapse:separate;border-spacing:0;width:100%;
     border:1px solid var(--line);border-radius:10px;overflow:hidden}
@@ -133,6 +135,14 @@ function recompute(){
   }
 }
 
+// 버튼 텍스트를 잠깐 바꿔 눌린 걸 알려줌
+function flash(btn,msg){
+  if(btn.dataset.orig===undefined)btn.dataset.orig=btn.textContent;
+  btn.textContent=msg;btn.classList.add('flash');
+  clearTimeout(btn._t);
+  btn._t=setTimeout(()=>{btn.textContent=btn.dataset.orig;btn.classList.remove('flash');},1100);
+}
+
 $('convert').onclick=()=>{
   const vars=[];
   document.querySelectorAll('input.val').forEach(i=>{
@@ -141,12 +151,18 @@ $('convert').onclick=()=>{
   });
   $('out').value=substitute($('query').value,vars);
 };
-$('copy').onclick=()=>{navigator.clipboard.writeText($('out').value);};
+$('copy').onclick=(e)=>{
+  if(!$('out').value)return;
+  navigator.clipboard.writeText($('out').value)
+    .then(()=>flash(e.currentTarget,'복사됨 ✓'))
+    .catch(()=>flash(e.currentTarget,'복사 실패'));
+};
 
-$('reset').onclick=()=>{
+$('reset').onclick=(e)=>{
   $('query').value='';$('init').value='';$('out').value='';
   $('varsBody').innerHTML='';$('varsBox').hidden=true;
   ASSIGNS=[];FREE=[];
+  flash(e.currentTarget,'초기화됨');
 };
 </script>
 </body>
