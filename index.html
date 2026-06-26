@@ -152,10 +152,15 @@ $('convert').onclick=()=>{
   $('out').value=substitute($('query').value,vars);
 };
 $('copy').onclick=(e)=>{
-  if(!$('out').value)return;
-  navigator.clipboard.writeText($('out').value)
-    .then(()=>flash(e.currentTarget,'복사됨 ✓'))
-    .catch(()=>flash(e.currentTarget,'복사 실패'));
+  const o=$('out'); if(!o.value)return;
+  const ok=()=>flash(e.currentTarget,'복사됨 ✓'), no=()=>flash(e.currentTarget,'복사 실패');
+  if(navigator.clipboard&&window.isSecureContext){          // https/localhost
+    navigator.clipboard.writeText(o.value).then(ok).catch(no);
+  }else{                                                     // file:// 폴백
+    o.focus();o.select();
+    let done=false;try{done=document.execCommand('copy');}catch(_){}
+    o.blur();done?ok():no();
+  }
 };
 
 $('reset').onclick=(e)=>{
