@@ -152,15 +152,15 @@ $('convert').onclick=()=>{
   $('out').value=substitute($('query').value,vars);
 };
 $('copy').onclick=(e)=>{
-  const o=$('out'); if(!o.value)return;
-  const ok=()=>flash(e.currentTarget,'복사됨 ✓'), no=()=>flash(e.currentTarget,'복사 실패');
-  if(navigator.clipboard&&window.isSecureContext){          // https/localhost
-    navigator.clipboard.writeText(o.value).then(ok).catch(no);
-  }else{                                                     // file:// 폴백
+  const btn=e.currentTarget, o=$('out'); if(!o.value)return; // btn은 동기로 잡아둠(콜백에선 currentTarget이 null)
+  const ok=()=>flash(btn,'복사됨 ✓');
+  const legacy=()=>{ // 클립보드 API 거부/없을 때 폴백
     o.focus();o.select();
     let done=false;try{done=document.execCommand('copy');}catch(_){}
-    o.blur();done?ok():no();
-  }
+    o.blur();done?ok():flash(btn,'복사 실패');
+  };
+  if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(o.value).then(ok).catch(legacy);
+  else legacy();
 };
 
 $('reset').onclick=(e)=>{
