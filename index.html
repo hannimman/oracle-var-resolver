@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQL 변수 치환기</title>
+<style>
+  body{font:14px/1.5 system-ui,sans-serif;margin:0;padding:16px;max-width:1100px;margin:0 auto;color:#222}
+  h1{font-size:18px}
+  textarea{width:100%;box-sizing:border-box;font:13px/1.4 ui-monospace,Consolas,monospace;padding:8px;border:1px solid #bbb;border-radius:6px}
+  .row{display:flex;gap:16px;flex-wrap:wrap}
+  .col{flex:1;min-width:320px}
+  button{font-size:14px;padding:6px 14px;border:1px solid #888;border-radius:6px;background:#f4f4f4;cursor:pointer}
+  button:hover{background:#e8e8e8}
+  table{border-collapse:collapse;width:100%;margin:8px 0}
+  td{border:1px solid #ddd;padding:4px 6px;vertical-align:middle}
+  td.name{font-family:ui-monospace,monospace;white-space:nowrap;background:#fafafa}
+  td.tag{width:1%;white-space:nowrap;color:#888;font-size:12px}
+  input.val{width:100%;box-sizing:border-box;font:13px ui-monospace,monospace;border:1px solid #ccc;border-radius:4px;padding:3px 5px}
+  input.err{border-color:#d33;background:#fff4f4}
+  .muted{color:#888;font-size:12px}
+  #out{white-space:pre-wrap}
+</style>
+</head>
+<body>
+<h1>SQL 변수 치환기</h1>
+
+<div class="row">
+  <div class="col">
+    <label>① 쿼리</label>
+    <textarea id="query" rows="16" placeholder="변수(V_..., P_...)가 들어간 쿼리를 붙여넣기"></textarea>
+  </div>
+  <div class="col">
+    <label>② 변수 초기화 블록 <span class="muted">(없으면 쿼리에서 변수를 자동으로 찾음)</span></label>
+    <textarea id="init" rows="16" placeholder="V_PROC_DATE := TO_DATE(P_PROC_YM||'01','YYYYMMDD');&#10;SELECT SUBSTR(...) INTO V_YEARMONTH FROM DUAL;&#10;...&#10;(비워두면 쿼리에서 P_/V_ 변수를 추출)"></textarea>
+  </div>
+</div>
+
+<p><button id="analyze">분석 ▶</button> <button id="reset">초기화</button> <span class="muted">변수 입력칸을 만든다</span></p>
+
+<div id="varsBox" hidden>
+  <table><tbody id="varsBody"></tbody></table>
+  <p class="muted">입력 변수 값을 바꾸면 파생 변수가 자동 재계산된다. 어떤 칸이든 직접 수정 가능. (date는 TO_DATE 리터럴로 출력)</p>
+  <p><button id="convert">변환 ▶</button> <button id="copy">결과 복사</button></p>
+  <textarea id="out" rows="16" readonly></textarea>
+</div>
+
+<script src="app.js"></script>
+<script>
+let ASSIGNS=[], FREE=[];
+const $=id=>document.getElementById(id);
+
+$('analyze').onclick=()=>{
+  ASSIGNS=parseInit($('init').value);
+  FREE=freeVars(ASSIGNS);
+  const known=new Set([...FREE,...ASSIGNS.map(a=>a.name)]);
+  const qVars=scanVars($('query').value).filter(v=>!known.has(v)); // 초기화블록에 없는, 쿼리에만 있는 변수
+  const body=$('varsBody'); body.innerHTML='';
+  for(const name of FREE) body.appendChild(varRow(name,'입력',{free:true}));
+  for(const a of ASSIGNS) body.appendChild(varRow(a.name,a.expr?'파생':'수동입력',a.expr?{}:{manual:true}));
+  for(const name of qVars) body.appendChild(varRow(name,'쿼리(직접입력)',{verbatim:true}));
+  if(!FREE.length&&!ASSIGNS.length&&!qVars.length){body.innerHTML='<tr><td>변수를 찾지 못했어요. 초기화 블록을 넣거나, 쿼리에 P_/V_ 형태 변수가 있는지 확인하세요.</td></tr>';}
+  $('varsBox').hidden=false;
+  recompute();
+  body.querySelectorAll('input[data-free],input[data-manual]').forEach(inp=>inp.oninput=recompute);
+};
+
+function varRow(name,tag,opts){
+  opts=opts||{};
+  const tr=document.createElement('tr');
+  tr.innerHTML='<td class="name">'+name+'</td><td class="tag">'+tag+'</td>';
+  const td=document.createElement('td');
+  const inp=document.createElement('input');
+  inp.className='val'; inp.value=''; inp.dataset.name=name;
+  if(opts.free) inp.dataset.free='1';
+  if(opts.manual){inp.dataset.manual='1';inp.placeholder='테이블 조회값 — 직접 입력';}
+  if(opts.verbatim){inp.dataset.verbatim='1';inp.placeholder="치환할 값 그대로: '202606' 또는 숫자/TO_DATE(...)";}
+  td.appendChild(inp); tr.appendChild(td);
+  return tr;
+}
+
+function recompute(){
+  const inputs={}; document.querySelectorAll('input.val').forEach(i=>inputs[i.dataset.name]=i);
+  const env={};
+  for(const name of FREE) env[name]={t:'str',v:unq(inputs[name].value)};
+  for(const a of ASSIGNS){
+    const inp=inputs[a.name]; if(!inp)continue;
+    if(!a.expr){env[a.name]={t:'str',v:unq(inp.value)};continue;} // 수동입력값을 그대로 환경에 반영
+    try{const v=evalExpr(a.expr,env);env[a.name]=v;inp.value=literalOf(v);inp.classList.remove('err');inp.title='';}
+    catch(e){inp.value='';inp.classList.add('err');inp.title=e.message;}
+  }
+}
+
+$('convert').onclick=()=>{
+  const vars=[];
+  document.querySelectorAll('input.val').forEach(i=>{
+    const literal=i.dataset.free?("'"+unq(i.value).replace(/'/g,"''")+"'"):i.value; // 입력변수만 자동 따옴표
+    if(literal!=='')vars.push({name:i.dataset.name,literal});
+  });
+  $('out').value=substitute($('query').value,vars);
+};
+$('copy').onclick=()=>{navigator.clipboard.writeText($('out').value);};
+
+$('reset').onclick=()=>{
+  $('query').value='';$('init').value='';$('out').value='';
+  $('varsBody').innerHTML='';$('varsBox').hidden=true;
+  ASSIGNS=[];FREE=[];
+};
+</script>
+</body>
+</html>
