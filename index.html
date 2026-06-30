@@ -12,13 +12,22 @@
     --radius:12px; --shadow:0 1px 3px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
+  html,body{min-height:100%}
+  body{margin:0;color:var(--ink);
     font:14px/1.6 system-ui,"Segoe UI",-apple-system,"Malgun Gothic",sans-serif;
-    padding:28px 16px;}
+    padding:28px 16px;background:#070b18;}
+  /* 오로라 배경: 여러 빛 덩어리가 각자 떠다니며 숨쉬듯 — 몽환적 (JS로 transform) */
+  .aurora{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;
+    filter:blur(70px) saturate(1.35)}
+  .aurora .blob{position:absolute;border-radius:50%;mix-blend-mode:screen;
+    will-change:transform;opacity:.9}
   .wrap{max-width:1080px;margin:0 auto}
 
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .card{background:rgba(255,255,255,.72);backdrop-filter:blur(14px) saturate(1.2);
+    -webkit-backdrop-filter:blur(14px) saturate(1.2);
+    border:1px solid rgba(255,255,255,.6);border-radius:var(--radius);
+    box-shadow:0 1px 3px rgba(16,24,40,.06),0 12px 40px rgba(40,50,90,.12);
+    padding:18px;margin-bottom:16px}
 
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   @media(max-width:720px){.grid{grid-template-columns:1fr}}
@@ -57,6 +66,24 @@
     border:1px solid var(--line);border-radius:7px;padding:6px 8px;background:#fff}
   input.val.err{border-color:#e5484d;background:#fff5f5}
   input.val::placeholder{color:#aab2bd}
+  .addvar{position:relative;display:inline-block;margin-left:7px;color:var(--accent);
+    font-weight:700;font-size:15px;cursor:pointer;user-select:none}
+  .addvar .popup{display:none;position:absolute;top:100%;left:0;z-index:20;width:270px;
+    background:rgba(255,255,255,.96);backdrop-filter:blur(8px);
+    border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
+    padding:12px;font-weight:400;color:var(--ink);cursor:default}
+  .addvar:hover .popup,.addvar .popup:hover{display:block}
+  .popup h4{margin:8px 0 6px;font-size:12px;font-weight:600;color:#46506a}
+  .popup h4:first-child{margin-top:0}
+  .popup .pinput{display:flex;gap:6px}
+  .popup .pinput input{flex:1;font:12px var(--mono);border:1px solid var(--line);border-radius:6px;padding:5px 7px}
+  .popup .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+  .popup .chips:empty{display:none}
+  .popup .c{display:inline-flex;align-items:center;background:#eef1f6;border-radius:999px;
+    padding:2px 4px 2px 9px;font:600 11px var(--mono);color:#46506a}
+  .popup .c b{cursor:pointer;color:#9aa3b2;padding:0 4px;font-size:13px;line-height:1}
+  .popup .c b:hover{color:#e5484d}
+  .popup .hint{display:block;margin-top:8px;font-size:11px;color:var(--muted)}
   .quick{display:flex;gap:5px;margin-top:5px}
   button.mini{font:600 11px system-ui,sans-serif;padding:3px 9px;border-radius:6px;
     border:1px solid var(--line);background:#f1f4f9;color:#46506a}
@@ -65,11 +92,20 @@
 </style>
 </head>
 <body>
+<div class="aurora" id="aurora"></div>
 <div class="wrap">
 <div class="card">
   <div class="grid">
     <div>
-      <label>① 쿼리</label>
+      <label>① 쿼리<span class="addvar" title="변수 프리픽스/이름 등록">＋<div class="popup">
+        <h4>변수 프리픽스 추가 <span class="hint">(예: GV_)</span></h4>
+        <div class="pinput"><input id="cvPrefix" placeholder="GV_" autocomplete="off"><button type="button" class="mini" id="cvPrefixAdd">추가</button></div>
+        <div class="chips" id="cvPrefixList"></div>
+        <h4>변수명 직접 추가 <span class="hint">(프리픽스 없는 변수)</span></h4>
+        <div class="pinput"><input id="cvName" placeholder="gYearMonth" autocomplete="off"><button type="button" class="mini" id="cvNameAdd">추가</button></div>
+        <div class="chips" id="cvNameList"></div>
+        <div class="hint">기본 P_ / V_ 는 항상 포함됩니다.</div>
+      </div></span></label>
       <textarea id="query" rows="7" placeholder="변수(V_..., P_...)가 들어간 쿼리를 붙여넣기"></textarea>
     </div>
     <div>
@@ -98,11 +134,37 @@
 let ASSIGNS=[], FREE=[];
 const $=id=>document.getElementById(id);
 
+/* ---------- 사용자 등록 변수(프리픽스/이름) — localStorage ---------- */
+const LS='ovr_customVars';
+let CUSTOM={prefixes:[],names:[]};
+try{const c=JSON.parse(localStorage.getItem(LS));if(c){CUSTOM.prefixes=c.prefixes||[];CUSTOM.names=c.names||[];}}catch(_){}
+function saveCustom(){try{localStorage.setItem(LS,JSON.stringify(CUSTOM));}catch(_){}}
+function renderChips(){
+  const mk=(list,arr)=>{list.innerHTML='';arr.forEach((v,i)=>{
+    const c=document.createElement('span');c.className='c';c.textContent=v;
+    const x=document.createElement('b');x.textContent='×';x.title='삭제';
+    x.onclick=()=>{arr.splice(i,1);saveCustom();renderChips();};
+    c.appendChild(x);list.appendChild(c);
+  });};
+  mk($('cvPrefixList'),CUSTOM.prefixes);
+  mk($('cvNameList'),CUSTOM.names);
+}
+function addCustom(arr,raw){
+  const v=(raw||'').trim();
+  if(v&&!arr.some(x=>x.toLowerCase()===v.toLowerCase())){arr.push(v);saveCustom();renderChips();}
+}
+$('cvPrefixAdd').onclick=()=>{addCustom(CUSTOM.prefixes,$('cvPrefix').value);$('cvPrefix').value='';};
+$('cvNameAdd').onclick=()=>{addCustom(CUSTOM.names,$('cvName').value);$('cvName').value='';};
+$('cvPrefix').onkeydown=e=>{if(e.key==='Enter')$('cvPrefixAdd').onclick();};
+$('cvName').onkeydown=e=>{if(e.key==='Enter')$('cvNameAdd').onclick();};
+renderChips();
+
 $('analyze').onclick=()=>{
   ASSIGNS=parseInit($('init').value);
   FREE=freeVars(ASSIGNS);
   const known=new Set([...FREE,...ASSIGNS.map(a=>a.name)].map(s=>s.toLowerCase()));
-  const qVars=scanVars($('query').value).filter(v=>!known.has(v.toLowerCase())); // 초기화블록에 없는, 쿼리에만 있는 변수(대소문자 무시)
+  const prefixes=['P_','V_',...CUSTOM.prefixes];
+  const qVars=scanVars($('query').value,prefixes,CUSTOM.names).filter(v=>!known.has(v.toLowerCase())); // 초기화블록에 없는, 쿼리에만 있는 변수(대소문자 무시)
   const body=$('varsBody'); body.innerHTML='';
   for(const name of FREE) body.appendChild(varRow(name,'입력','input',{free:true}));
   for(const a of ASSIGNS) body.appendChild(varRow(a.name,a.expr?'파생':'수동입력',a.expr?'derived':'manual',a.expr?{}:{manual:true}));
@@ -202,6 +264,47 @@ $('reset').onclick=(e)=>{
   ASSIGNS=[];FREE=[];
   flash(e.currentTarget,'초기화됨');
 };
+
+/* ---------- 오로라: 여러 빛 덩어리가 제각각 떠다니고 숨쉬듯 — 몽환적 ---------- */
+(()=>{
+  const el=$('aurora'); if(!el)return;
+  // 색, 시작위치(%), 크기(vw), 속도, 위상, 깊이(마우스 반응 정도)
+  const BLOBS=[
+    {c:'70,110,255', x:24,y:28,s:62,sp:.18,ph:0.0,d:1.0},
+    {c:'235,70,160', x:80,y:20,s:54,sp:.13,ph:1.3,d:0.6},
+    {c:'40,225,200', x:72,y:80,s:68,sp:.16,ph:2.6,d:1.3},
+    {c:'150,80,255', x:26,y:82,s:58,sp:.11,ph:3.9,d:0.8},
+    {c:'90,170,255', x:54,y:48,s:46,sp:.21,ph:5.2,d:0.4},
+  ];
+  const nodes=BLOBS.map(b=>{
+    const n=document.createElement('div');n.className='blob';
+    n.style.left=b.x+'%';n.style.top=b.y+'%';
+    n.style.width=b.s+'vw';n.style.height=b.s+'vw';
+    n.style.background=`radial-gradient(circle at center, rgba(${b.c},.95), rgba(${b.c},0) 70%)`;
+    el.appendChild(n);return n;
+  });
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches){ // 모션 최소화: 가운데 정렬만, 정지
+    nodes.forEach(n=>n.style.transform='translate(-50%,-50%)');return;
+  }
+  let mx=0,my=0,cx=0,cy=0,t=0,energy=0,eTarget=0;
+  addEventListener('mousemove',e=>{mx=e.clientX/innerWidth-0.5;my=e.clientY/innerHeight-0.5;},{passive:true});
+  // 버튼 클릭 시 잠깐 더 다이나믹하게 — 목표값만 올리고 실제 에너지는 부드럽게 따라감(점프 없음)
+  addEventListener('click',e=>{if(e.target.closest('button'))eTarget=Math.min(eTarget+1.2,1.8);},{passive:true});
+  (function frame(){
+    eTarget*=0.95;                                 // 목표 서서히 감쇠
+    energy+=(eTarget-energy)*0.06;                  // 실제 에너지는 천천히 따라감 → 팟! 없이 스르륵
+    const amp=1+energy*1.4, brk=1+energy*1.2;       // 이동/숨쉬기 폭 ↑
+    t+=0.012*(1+energy*2.5);                         // 속도도 ↑
+    cx+=(mx-cx)*0.04; cy+=(my-cy)*0.04;
+    BLOBS.forEach((b,i)=>{
+      const ox=(Math.sin(t*b.sp*6+b.ph)*15 + Math.sin(t*b.sp*2.3+b.ph*1.7)*9)*amp + cx*10*b.d;
+      const oy=(Math.cos(t*b.sp*5+b.ph)*15 + Math.cos(t*b.sp*1.9+b.ph*1.3)*9)*amp + cy*10*b.d;
+      const sc=1 + Math.sin(t*b.sp*4+b.ph)*0.25*brk; // 숨쉬듯 커졌다 작아짐
+      nodes[i].style.transform=`translate(-50%,-50%) translate(${ox}vw,${oy}vw) scale(${sc})`;
+    });
+    requestAnimationFrame(frame);
+  })();
+})();
 </script>
 </body>
 </html>

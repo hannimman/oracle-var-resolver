@@ -161,9 +161,15 @@ function parseInit(text){
     return [];
   });
 }
-// 쿼리에서 변수 후보 추출: P_/V_/p_ 로 시작하는 식별자 (컬럼 ALIAS.COL 은 제외). 대소문자 구분 없이 중복 제거.
-function scanVars(text){
-  const seen=new Set(),out=[]; const re=/(?<![\w.$])[PpVv]_[A-Za-z0-9_]+/g; let m;
+// 쿼리에서 변수 후보 추출: 프리픽스(기본 P_/V_) 로 시작하는 식별자 + 등록된 정확한 이름.
+// 컬럼 ALIAS.COL 은 제외, 대소문자 구분 없이 중복 제거.
+function scanVars(text,prefixes,names){
+  prefixes=(prefixes&&prefixes.length)?prefixes:['P_','V_'];
+  const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const parts=['(?:'+prefixes.map(esc).join('|')+')[A-Za-z0-9_]+'];
+  if(names&&names.length)parts.push('(?:'+names.map(esc).join('|')+')');
+  const re=new RegExp('(?<![\\w.$])(?:'+parts.join('|')+')(?![\\w$])','gi');
+  const seen=new Set(),out=[]; let m;
   while((m=re.exec(text))){const k=m[0].toLowerCase();if(!seen.has(k)){seen.add(k);out.push(m[0]);}}
   return out;
 }
