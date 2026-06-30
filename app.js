@@ -143,7 +143,8 @@ function splitTopLevel(s){
   return out.map(x=>x.trim()).filter(Boolean);
 }
 function parseInit(text){
-  const clean=text.split('\n').map(l=>{const i=l.indexOf('--');return i>=0?l.slice(0,i):l;}).join('\n');
+  const noBlock=text.replace(/\/\*[\s\S]*?\*\//g,''); // 블록주석 /* */ 제거
+  const clean=noBlock.split('\n').map(l=>{const i=l.indexOf('--');return i>=0?l.slice(0,i):l;}).join('\n'); // 줄주석 -- 제거
   return clean.split(';').map(s=>s.trim()).filter(Boolean).flatMap(st=>{
     let m=/^([A-Za-z_$][\w$]*)\s*:=\s*([\s\S]+)$/.exec(st);            // VAR := EXPR
     if(m)return [{name:m[1],expr:m[2].trim()}];

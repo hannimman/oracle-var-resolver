@@ -95,5 +95,26 @@ SELECT
 {P_PROC_YM:'202507'},
 {V_strYearMonth:"'202507'",V_CURR_YEARMONTH:"'2025-07'",V_strStartDt:"'2025-07-01'",V_strEndDt:"'2025-07-31'",v_intMonthDay:"31"});
 
+all&=run('패턴: := + 블록주석 + 다중 INTO (앞 변수 참조)',`
+V_dtStartDt := TO_DATE(P_PROC_YM || '01', 'YYYYMMDD');
+V_dtEndDt := LAST_DAY(V_dtStartDt);
+/*주차수 적재월 관련 정보 가져오기*/
+SELECT
+  P_PROC_YM
+  , TO_CHAR(V_dtStartDt, 'YYYY-MM')
+  , TO_CHAR(V_dtStartDt, 'YYYY-MM-DD')
+  , TO_CHAR(V_dtEndDt, 'YYYY-MM-DD')
+  , TO_CHAR(V_dtEndDt + 1, 'YYYY-MM-DD')
+  , TO_NUMBER(TO_CHAR(V_dtEndDt,'DD') )
+  INTO V_strYearMonth
+  , V_CURR_YEARMONTH
+  , V_strStartDt
+  , V_strEndDt
+  , V_strNextStartDt
+  , v_intMonthDay
+  FROM DUAL;`,
+{P_PROC_YM:'202407'},
+{V_strYearMonth:"'202407'",V_CURR_YEARMONTH:"'2024-07'",V_strStartDt:"'2024-07-01'",V_strEndDt:"'2024-07-31'",V_strNextStartDt:"'2024-08-01'",v_intMonthDay:"31"});
+
 console.log(all?'=== 전체 통과 ===':'=== 실패 있음 ===');
 process.exit(all?0:1);
