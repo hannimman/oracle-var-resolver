@@ -154,8 +154,8 @@ function recompute(){
   for(const a of ASSIGNS){
     const inp=inputs[a.name]; if(!inp)continue;
     if(!a.expr){env[a.name]={t:'str',v:unq(inp.value)};continue;} // 수동입력값을 그대로 환경에 반영
-    try{const v=evalExpr(a.expr,env);env[a.name]=v;inp.value=literalOf(v);inp.classList.remove('err');inp.title='';}
-    catch(e){inp.value='';inp.classList.add('err');inp.title=e.message;}
+    try{const v=evalExpr(a.expr,env);env[a.name]=v;inp.value=literalOf(v);inp.classList.remove('err');inp.title='';inp.placeholder='';}
+    catch(e){inp.value='';inp.classList.add('err');inp.title=e.message;inp.placeholder='⚠ '+e.message;} // 에러 이유를 칸에 표시
   }
 }
 
