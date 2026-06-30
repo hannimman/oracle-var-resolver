@@ -40,6 +40,14 @@
   #out{background:#0f1729;color:#d6e2ff;border-color:#0f1729;white-space:pre;overflow:auto}
 
   .actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .opt{display:flex;align-items:center;gap:6px;font-weight:400;font-size:12.5px;color:var(--muted);cursor:pointer}
+  .opt input{position:absolute;opacity:0;width:0;height:0}
+  .sw{position:relative;flex:0 0 auto;width:34px;height:18px;border-radius:999px;background:#c7cdd8;transition:.2s}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:.2s}
+  .opt input:checked+.sw{background:var(--accent)}
+  .opt input:checked+.sw::after{transform:translateX(16px)}
+  .opt input:focus-visible+.sw{box-shadow:0 0 0 3px rgba(79,110,247,.3)}
   .spacer{flex:1}
   button{font:600 13.5px system-ui,sans-serif;padding:9px 18px;border-radius:9px;
     border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;transition:.12s}
@@ -124,6 +132,7 @@
   <div class="actions">
     <button id="convert" class="primary">변환 ▶</button>
     <button id="copy">결과 복사</button>
+    <label class="opt"><input type="checkbox" id="stripBlank" checked><span class="sw"></span> 빈 줄 제거 <span class="hint">(DBeaver 빈줄 오류 방지)</span></label>
   </div>
   <textarea id="out" rows="14" readonly style="margin-top:14px"></textarea>
 </div>
@@ -244,8 +253,11 @@ $('convert').onclick=()=>{
     const literal=i.dataset.free?("'"+unq(i.value).replace(/'/g,"''")+"'"):i.value; // 입력변수만 자동 따옴표
     if(literal!=='')vars.push({name:i.dataset.name,literal});
   });
-  $('out').value=substitute($('query').value,vars);
+  let res=substitute($('query').value,vars);
+  if($('stripBlank').checked) res=res.split('\n').filter(l=>l.trim()!=='').join('\n'); // 빈 줄 제거
+  $('out').value=res;
 };
+$('stripBlank').onchange=()=>{if($('out').value!=='')$('convert').click();}; // 토글 시 결과 갱신
 $('copy').onclick=(e)=>{
   const btn=e.currentTarget, o=$('out'); if(!o.value)return; // btn은 동기로 잡아둠(콜백에선 currentTarget이 null)
   const ok=()=>flash(btn,'복사됨 ✓');
