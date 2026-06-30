@@ -125,5 +125,12 @@ SELECT
   console.log('치환: 대소문자 무시: '+(ok?'OK':'FAILED')+'\n');
 }
 
+all&=run('패턴: NVL (값 있음/없음)',`
+V_MBR_TYPE_CD := 'Z';
+V_DEPT_CD     := NVL(P_DEPT_CD,'1');
+V_BIZ         := NVL(P_BIZ,'300');`,
+{P_DEPT_CD:'2',P_BIZ:''},
+{V_MBR_TYPE_CD:"'Z'",V_DEPT_CD:"'2'",V_BIZ:"'300'"});
+
 console.log(all?'=== 전체 통과 ===':'=== 실패 있음 ===');
 process.exit(all?0:1);

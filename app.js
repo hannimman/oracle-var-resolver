@@ -1,7 +1,7 @@
 /* Oracle 식 평가기 + 변수 파서 + 치환 (DOM 없음 — 브라우저/Node 공용)
    지원 함수: TO_DATE, TO_CHAR, LAST_DAY, ADD_MONTHS, SUBSTR, REPLACE
    지원 연산: 날짜 ± 정수(일), 문자열 || 연결 */
-const FUNCS = new Set(['TO_DATE','TO_CHAR','LAST_DAY','ADD_MONTHS','SUBSTR','REPLACE','TO_NUMBER']);
+const FUNCS = new Set(['TO_DATE','TO_CHAR','LAST_DAY','ADD_MONTHS','SUBSTR','REPLACE','TO_NUMBER','NVL','COALESCE']);
 const DATEFMT = 'YYYY-MM-DD HH24:MI:SS';
 
 function tokenize(s){
@@ -77,6 +77,8 @@ function callFunc(name,a){
     case 'LAST_DAY':return {t:'date',v:lastDay(asDate(a[0]))};
     case 'ADD_MONTHS':return {t:'date',v:addMonths(asDate(a[0]),a[1].v)};
     case 'TO_NUMBER':return {t:'num',v:Number(asStr(a[0]))};
+    case 'NVL':return (a[0].t==='str'&&a[0].v==='')?a[1]:a[0]; // 빈 문자열(=NULL)이면 두번째 값
+    case 'COALESCE':return a.find(x=>!(x.t==='str'&&x.v===''))||a[a.length-1];
     case 'SUBSTR':{const s=asStr(a[0]),st=a[1].v,ln=a.length>2?a[2].v:undefined;const b=st>0?st-1:s.length+st;return {t:'str',v:ln===undefined?s.slice(b):s.substr(b,ln)};}
     case 'REPLACE':{const s=asStr(a[0]),f=asStr(a[1]),r=a.length>2?asStr(a[2]):'';return {t:'str',v:f===''?s:s.split(f).join(r)};}
     default: throw new Error('지원하지 않는 함수: '+name);
