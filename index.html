@@ -57,6 +57,10 @@
     border:1px solid var(--line);border-radius:7px;padding:6px 8px;background:#fff}
   input.val.err{border-color:#e5484d;background:#fff5f5}
   input.val::placeholder{color:#aab2bd}
+  .quick{display:flex;gap:5px;margin-top:5px}
+  button.mini{font:600 11px system-ui,sans-serif;padding:3px 9px;border-radius:6px;
+    border:1px solid var(--line);background:#f1f4f9;color:#46506a}
+  button.mini:hover{background:#e6ecf5}
   .empty{color:var(--muted);padding:14px;text-align:center}
 </style>
 </head>
@@ -119,8 +123,25 @@ function varRow(name,tag,cls,opts){
   if(opts.free) inp.dataset.free='1';
   if(opts.manual){inp.dataset.manual='1';inp.placeholder='테이블 조회값 — 직접 입력';}
   if(opts.verbatim){inp.dataset.verbatim='1';inp.placeholder="치환할 값 그대로: '202606' 또는 숫자/TO_DATE(...)";}
-  td.appendChild(inp); tr.appendChild(td);
+  td.appendChild(inp);
+  if((opts.free||opts.verbatim)&&/YM|YEARMONTH|DATE|DT/i.test(name)){ // 월/날짜 입력엔 추천 버튼
+    const box=document.createElement('div');box.className='quick';
+    [['이번달',0],['전달',1],['전전달',2]].forEach(([label,back])=>{
+      const b=document.createElement('button');b.type='button';b.className='mini';b.textContent=label;
+      b.onclick=()=>{const v=monthValue(back,name);inp.value=opts.free?v:("'"+v+"'");recompute();};
+      box.appendChild(b);
+    });
+    td.appendChild(box);
+  }
+  tr.appendChild(td);
   return tr;
+}
+// 현재 달 기준 back개월 전. DATE/DT 이름이면 그 달 '마지막 날'(YYYY-MM-DD), 아니면 YYYYMM
+function monthValue(back,name){
+  const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-back);
+  const y=d.getFullYear(),mo=d.getMonth(),m=String(mo+1).padStart(2,'0');
+  if(/DATE|DT/i.test(name)){const last=new Date(y,mo+1,0).getDate();return `${y}-${m}-${String(last).padStart(2,'0')}`;}
+  return `${y}${m}`;
 }
 
 function recompute(){
