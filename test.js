@@ -79,5 +79,21 @@ SELECT
 {P_PROC_YM:'202507'},
 {V_strStartDt:"'2025-07-01'",V_strEndDt:"'20250731'",V_strLastMonth:"'202506'",V_strNextStartDt:"'2025-08-01'"});
 
+all&=run('패턴: TO_NUMBER + 날짜함수에 문자열 암묵변환',`
+SELECT
+  P_PROC_YM
+  , SUBSTR(P_PROC_YM,1,4) || '-'||SUBSTR(P_PROC_YM,5,2)
+  , TO_CHAR(TO_DATE(P_PROC_YM ||'01'),'YYYY-MM-DD')
+  , TO_CHAR(LAST_DAY(TO_DATE(P_PROC_YM || '01','YYYYMMDD')),'YYYY-MM-DD')
+  , TO_NUMBER(TO_CHAR(LAST_DAY(P_PROC_YM  || '01'),'DD') )
+  INTO V_strYearMonth
+  , V_CURR_YEARMONTH
+  , V_strStartDt
+  , V_strEndDt
+  , v_intMonthDay
+  FROM DUAL;`,
+{P_PROC_YM:'202507'},
+{V_strYearMonth:"'202507'",V_CURR_YEARMONTH:"'2025-07'",V_strStartDt:"'2025-07-01'",V_strEndDt:"'2025-07-31'",v_intMonthDay:"31"});
+
 console.log(all?'=== 전체 통과 ===':'=== 실패 있음 ===');
 process.exit(all?0:1);

@@ -1,7 +1,7 @@
 /* Oracle 식 평가기 + 변수 파서 + 치환 (DOM 없음 — 브라우저/Node 공용)
    지원 함수: TO_DATE, TO_CHAR, LAST_DAY, ADD_MONTHS, SUBSTR, REPLACE
    지원 연산: 날짜 ± 정수(일), 문자열 || 연결 */
-const FUNCS = new Set(['TO_DATE','TO_CHAR','LAST_DAY','ADD_MONTHS','SUBSTR','REPLACE']);
+const FUNCS = new Set(['TO_DATE','TO_CHAR','LAST_DAY','ADD_MONTHS','SUBSTR','REPLACE','TO_NUMBER']);
 const DATEFMT = 'YYYY-MM-DD HH24:MI:SS';
 
 function tokenize(s){
@@ -67,13 +67,16 @@ function addMonths(d,n){
 function addDays(d,n){return new Date(d.getTime()+n*86400000);}
 
 function asStr(v){if(v.t==='str')return v.v;if(v.t==='num')return String(v.v);return toChar(v.v,DATEFMT);}
+// 날짜 함수에 문자열이 오면 Oracle처럼 암묵적 날짜 변환
+function asDate(v){if(v.t==='date')return v.v;if(v.t==='str')return toDate(v.v,inferFmt(v.v));throw new Error('날짜로 변환 불가');}
 
 function callFunc(name,a){
   switch(name){
     case 'TO_DATE': return {t:'date',v:toDate(asStr(a[0]),a.length>1?asStr(a[1]):inferFmt(asStr(a[0])))};
-    case 'TO_CHAR': return {t:'str', v:toChar(a[0].v,asStr(a[1]))};
-    case 'LAST_DAY':return {t:'date',v:lastDay(a[0].v)};
-    case 'ADD_MONTHS':return {t:'date',v:addMonths(a[0].v,a[1].v)};
+    case 'TO_CHAR': return {t:'str', v:toChar(asDate(a[0]),asStr(a[1]))};
+    case 'LAST_DAY':return {t:'date',v:lastDay(asDate(a[0]))};
+    case 'ADD_MONTHS':return {t:'date',v:addMonths(asDate(a[0]),a[1].v)};
+    case 'TO_NUMBER':return {t:'num',v:Number(asStr(a[0]))};
     case 'SUBSTR':{const s=asStr(a[0]),st=a[1].v,ln=a.length>2?a[2].v:undefined;const b=st>0?st-1:s.length+st;return {t:'str',v:ln===undefined?s.slice(b):s.substr(b,ln)};}
     case 'REPLACE':{const s=asStr(a[0]),f=asStr(a[1]),r=a.length>2?asStr(a[2]):'';return {t:'str',v:f===''?s:s.split(f).join(r)};}
     default: throw new Error('지원하지 않는 함수: '+name);
