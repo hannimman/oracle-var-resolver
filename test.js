@@ -1,5 +1,5 @@
 // 평가기 검증: node test.js
-const {parseInit,evalExpr,literalOf}=require('./app.js');
+const {parseInit,evalExpr,literalOf,substitute}=require('./app.js');
 
 function run(label,init,free,expect){
   const env={};for(const k in free)env[k]={t:'str',v:free[k]};
@@ -115,6 +115,15 @@ SELECT
   FROM DUAL;`,
 {P_PROC_YM:'202407'},
 {V_strYearMonth:"'202407'",V_CURR_YEARMONTH:"'2024-07'",V_strStartDt:"'2024-07-01'",V_strEndDt:"'2024-07-31'",V_strNextStartDt:"'2024-08-01'",v_intMonthDay:"31"});
+
+// 치환 대소문자 무시: 선언 p_strYearMonth, 쿼리 P_strYearMonth
+{
+  const got=substitute('WHERE a = P_strYearMonth AND b = p_strYearMonth',[{name:'p_strYearMonth',literal:"'202507'"}]);
+  const exp="WHERE a = '202507' AND b = '202507'";
+  const ok=got===exp;all&=ok;
+  console.log(' '+(ok?'PASS':'FAIL')+' 대소문자무시 치환 = '+got+(ok?'':'  expect '+exp));
+  console.log('치환: 대소문자 무시: '+(ok?'OK':'FAILED')+'\n');
+}
 
 console.log(all?'=== 전체 통과 ===':'=== 실패 있음 ===');
 process.exit(all?0:1);

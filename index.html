@@ -101,8 +101,8 @@ const $=id=>document.getElementById(id);
 $('analyze').onclick=()=>{
   ASSIGNS=parseInit($('init').value);
   FREE=freeVars(ASSIGNS);
-  const known=new Set([...FREE,...ASSIGNS.map(a=>a.name)]);
-  const qVars=scanVars($('query').value).filter(v=>!known.has(v)); // 초기화블록에 없는, 쿼리에만 있는 변수
+  const known=new Set([...FREE,...ASSIGNS.map(a=>a.name)].map(s=>s.toLowerCase()));
+  const qVars=scanVars($('query').value).filter(v=>!known.has(v.toLowerCase())); // 초기화블록에 없는, 쿼리에만 있는 변수(대소문자 무시)
   const body=$('varsBody'); body.innerHTML='';
   for(const name of FREE) body.appendChild(varRow(name,'입력','input',{free:true}));
   for(const a of ASSIGNS) body.appendChild(varRow(a.name,a.expr?'파생':'수동입력',a.expr?'derived':'manual',a.expr?{}:{manual:true}));
@@ -110,7 +110,10 @@ $('analyze').onclick=()=>{
   if(!FREE.length&&!ASSIGNS.length&&!qVars.length){body.innerHTML='<tr><td class="empty">변수를 찾지 못했어요. 초기화 블록을 넣거나, 쿼리에 P_/V_ 형태 변수가 있는지 확인하세요.</td></tr>';}
   $('varsBox').hidden=false;
   recompute();
-  body.querySelectorAll('input[data-free],input[data-manual]').forEach(inp=>inp.oninput=recompute);
+  body.querySelectorAll('input.val').forEach(inp=>inp.addEventListener('input',()=>{
+    if(inp.dataset.free||inp.dataset.manual)recompute();
+    $('out').value=''; // 입력이 바뀌면 이전 변환 결과 무효화
+  }));
 };
 
 function varRow(name,tag,cls,opts){
@@ -128,7 +131,7 @@ function varRow(name,tag,cls,opts){
     const box=document.createElement('div');box.className='quick';
     [['이번달',0],['전달',1],['전전달',2]].forEach(([label,back])=>{
       const b=document.createElement('button');b.type='button';b.className='mini';b.textContent=label;
-      b.onclick=()=>{const v=monthValue(back,name);inp.value=opts.free?v:("'"+v+"'");recompute();};
+      b.onclick=()=>{const v=monthValue(back,name);inp.value=opts.free?v:("'"+v+"'");recompute();$('out').value='';};
       box.appendChild(b);
     });
     td.appendChild(box);

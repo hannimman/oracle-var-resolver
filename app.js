@@ -159,11 +159,11 @@ function parseInit(text){
     return [];
   });
 }
-// 쿼리에서 변수 후보 추출: P_/V_/p_ 로 시작하는 식별자 (컬럼 ALIAS.COL 은 제외)
+// 쿼리에서 변수 후보 추출: P_/V_/p_ 로 시작하는 식별자 (컬럼 ALIAS.COL 은 제외). 대소문자 구분 없이 중복 제거.
 function scanVars(text){
-  const set=new Set(); const re=/(?<![\w.$])[PpVv]_[A-Za-z0-9_]+/g; let m;
-  while((m=re.exec(text)))set.add(m[0]);
-  return [...set];
+  const seen=new Set(),out=[]; const re=/(?<![\w.$])[PpVv]_[A-Za-z0-9_]+/g; let m;
+  while((m=re.exec(text))){const k=m[0].toLowerCase();if(!seen.has(k)){seen.add(k);out.push(m[0]);}}
+  return out;
 }
 function freeVars(assigns){
   const assigned=new Set(assigns.map(a=>a.name)), free=new Set();
@@ -185,7 +185,7 @@ function freeVars(assigns){
 function substitute(query,vars){
   let out=query;
   for(const {name,literal} of [...vars].sort((a,b)=>b.name.length-a.name.length)){
-    const re=new RegExp('(?<![\\w$])'+name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?![\\w$])','g');
+    const re=new RegExp('(?<![\\w$])'+name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?![\\w$])','gi'); // 대소문자 무시(Oracle 식별자)
     out=out.replace(re,()=>literal); // 함수 replacer로 $ 특수처리 회피
   }
   return out;
