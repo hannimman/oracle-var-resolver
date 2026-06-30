@@ -64,5 +64,20 @@ V_C_BFR_YM :=  TO_CHAR((V_D_SDATE - 1), 'YYYYMM');`,
 {P_PROC_DATE:'2026-06-01'},
 {V_C_PROCYM:"'202606'",V_D_SDATE:"TO_DATE('2026-06-01','YYYY-MM-DD')",V_C8_SDATE:"'20260601'",V_D_EDATE:"TO_DATE('2026-06-30','YYYY-MM-DD')",V_C8_EDATE:"'20260630'",V_BIZ_CD:"'100'",V_C_BFR_YM:"'202605'"});
 
+all&=run('패턴: 한 SELECT에서 다중 INTO (DUAL)',`
+SELECT
+  TO_CHAR(TO_DATE(P_PROC_YM ||'01', 'YYYY-MM-DD'),'YYYY-MM-DD')
+  , TO_CHAR(LAST_DAY(TO_DATE(P_PROC_YM ||'01', 'YYYY-MM-DD')),'YYYYMMDD')
+  , TO_CHAR(TO_DATE(P_PROC_YM ||'01', 'YYYY-MM-DD') - 1,'YYYYMM')
+  , TO_CHAR(LAST_DAY(TO_DATE(P_PROC_YM || '01','YYYYMMDD')) + 1,'YYYY-MM-DD')
+  INTO
+  V_strStartDt      --정산연월1일
+  , V_strEndDt      --정산연월마지막일
+  , V_strLastMonth  --적재전월
+  , V_strNextStartDt --적재다음달1일
+  FROM DUAL;`,
+{P_PROC_YM:'202507'},
+{V_strStartDt:"'2025-07-01'",V_strEndDt:"'20250731'",V_strLastMonth:"'202506'",V_strNextStartDt:"'2025-08-01'"});
+
 console.log(all?'=== 전체 통과 ===':'=== 실패 있음 ===');
 process.exit(all?0:1);

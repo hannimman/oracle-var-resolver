@@ -125,17 +125,35 @@ function literalOf(v){
 }
 
 /* ---------- 초기화 블록 파싱 ---------- */
+// 최상위(괄호 밖, 문자열 밖) 콤마로만 분리. 함수 인자 안의 콤마는 무시.
+function splitTopLevel(s){
+  const out=[];let depth=0,cur='',q=false;
+  for(let i=0;i<s.length;i++){
+    const c=s[i];
+    if(q){cur+=c;if(c==="'"){if(s[i+1]==="'"){cur+="'";i++;}else q=false;}continue;}
+    if(c==="'"){q=true;cur+=c;continue;}
+    if(c==='(')depth++;else if(c===')')depth--;
+    if(c===','&&depth===0){out.push(cur);cur='';continue;}
+    cur+=c;
+  }
+  out.push(cur);
+  return out.map(x=>x.trim()).filter(Boolean);
+}
 function parseInit(text){
   const clean=text.split('\n').map(l=>{const i=l.indexOf('--');return i>=0?l.slice(0,i):l;}).join('\n');
-  return clean.split(';').map(s=>s.trim()).filter(Boolean).map(st=>{
+  return clean.split(';').map(s=>s.trim()).filter(Boolean).flatMap(st=>{
     let m=/^([A-Za-z_$][\w$]*)\s*:=\s*([\s\S]+)$/.exec(st);            // VAR := EXPR
-    if(m)return {name:m[1],expr:m[2].trim()};
-    m=/^SELECT\s+([\s\S]+?)\s+INTO\s+([A-Za-z_$][\w$]*)\s+FROM\s+DUAL\b/i.exec(st); // SELECT EXPR INTO VAR FROM DUAL → 계산가능
-    if(m)return {name:m[2],expr:m[1].trim()};
-    m=/^SELECT\s+[\s\S]+?\s+INTO\s+([A-Za-z_$][\w$]*)\s+FROM\b/i.exec(st);          // SELECT ... INTO VAR FROM 테이블 → 계산불가(수동)
-    if(m)return {name:m[1],expr:null};
-    return null;
-  }).filter(Boolean);
+    if(m)return [{name:m[1],expr:m[2].trim()}];
+    m=/^SELECT\s+([\s\S]+?)\s+INTO\s+([\s\S]+?)\s+FROM\s+DUAL\b/i.exec(st); // SELECT 식들 INTO 변수들 FROM DUAL → 계산가능
+    if(m){
+      const e=splitTopLevel(m[1]), v=splitTopLevel(m[2]);
+      if(e.length===v.length) return v.map((nm,i)=>({name:nm,expr:e[i]}));
+      return e.length&&v.length?[{name:v[0],expr:e[0]}]:[]; // 개수 안 맞으면 첫 쌍만
+    }
+    m=/^SELECT\s+[\s\S]+?\s+INTO\s+([\s\S]+?)\s+FROM\b/i.exec(st);      // SELECT ... INTO 변수들 FROM 테이블 → 계산불가(수동)
+    if(m)return splitTopLevel(m[1]).map(nm=>({name:nm,expr:null}));
+    return [];
+  });
 }
 // 쿼리에서 변수 후보 추출: P_/V_/p_ 로 시작하는 식별자 (컬럼 ALIAS.COL 은 제외)
 function scanVars(text){
