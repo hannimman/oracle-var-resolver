@@ -127,18 +127,27 @@ function varRow(name,tag,cls,opts){
   if(opts.manual){inp.dataset.manual='1';inp.placeholder='테이블 조회값 — 직접 입력';}
   if(opts.verbatim){inp.dataset.verbatim='1';inp.placeholder="치환할 값 그대로: '202606' 또는 숫자/TO_DATE(...)";}
   td.appendChild(inp);
-  if((opts.free||opts.verbatim)&&/YM|YEARMONTH|DATE|DT/i.test(name)){ // 월/날짜 입력엔 추천 버튼
-    const box=document.createElement('div');box.className='quick';
-    [['이번달',0],['전달',1],['전전달',2]].forEach(([label,back])=>{
-      const b=document.createElement('button');b.type='button';b.className='mini';b.textContent=label;
-      b.onclick=()=>{const v=monthValue(back,name);inp.value=opts.free?v:("'"+v+"'");recompute();$('out').value='';};
-      box.appendChild(b);
-    });
-    td.appendChild(box);
+  if(opts.free||opts.verbatim){ // 입력/쿼리 변수에 추천 버튼
+    const fill=v=>{inp.value=opts.free?v:("'"+v+"'");recompute();$('out').value='';};
+    let btns=null;
+    if(/YM|YEARMONTH|DATE|DT/i.test(name)) // 월/날짜
+      btns=[['이번달',0],['전달',1],['전전달',2]].map(([l,b])=>[l,()=>fill(monthValue(b,name))]);
+    else{ const s=SUGGEST.find(x=>x.re.test(name)); if(s)btns=s.opts.map(([l,v])=>[l,()=>fill(v)]); }
+    if(btns){
+      const box=document.createElement('div');box.className='quick';
+      btns.forEach(([label,fn])=>{const b=document.createElement('button');b.type='button';b.className='mini';b.textContent=label;b.onclick=fn;box.appendChild(b);});
+      td.appendChild(box);
+    }
   }
   tr.appendChild(td);
   return tr;
 }
+// 변수 이름별 값 추천 (코드값 등). 월/날짜는 monthValue로 따로 처리.
+const SUGGEST=[
+  {re:/BIZ_SECT/i, opts:[['유아','100'],['초등','200'],['중학','300'],['고등','400']]},
+  {re:/DEPT_CD/i,  opts:[['상담','1'],['관리','2']]},
+  {re:/CRTR_ID/i,  opts:[['test','test']]},
+];
 // 현재 달 기준 back개월 전. DATE/DT 이름이면 그 달 '마지막 날'(YYYY-MM-DD), 아니면 YYYYMM
 function monthValue(back,name){
   const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-back);
