@@ -1,7 +1,7 @@
 /* Oracle 식 평가기 + 변수 파서 + 치환 (DOM 없음 — 브라우저/Node 공용)
    지원 함수: TO_DATE, TO_CHAR, LAST_DAY, ADD_MONTHS, SUBSTR, REPLACE
    지원 연산: 날짜 ± 정수(일), 문자열 || 연결 */
-const FUNCS = new Set(['TO_DATE','TO_CHAR','LAST_DAY','ADD_MONTHS','SUBSTR','REPLACE','TO_NUMBER','NVL','COALESCE']);
+const FUNCS = new Set(['TO_DATE','TO_CHAR','LAST_DAY','ADD_MONTHS','SUBSTR','REPLACE','TO_NUMBER','NVL','COALESCE','TO_TIMESTAMP']);
 const DATEFMT = 'YYYY-MM-DD HH24:MI:SS';
 
 function tokenize(s){
@@ -72,7 +72,7 @@ function asDate(v){if(v.t==='date')return v.v;if(v.t==='str')return toDate(v.v,i
 
 function callFunc(name,a){
   switch(name){
-    case 'TO_DATE': return {t:'date',v:toDate(asStr(a[0]),a.length>1?asStr(a[1]):inferFmt(asStr(a[0])))};
+    case 'TO_DATE': case 'TO_TIMESTAMP': return {t:'date',v:toDate(asStr(a[0]),a.length>1?asStr(a[1]):inferFmt(asStr(a[0])))};
     case 'TO_CHAR': return {t:'str', v:toChar(asDate(a[0]),asStr(a[1]))};
     case 'LAST_DAY':return {t:'date',v:lastDay(asDate(a[0]))};
     case 'ADD_MONTHS':return {t:'date',v:addMonths(asDate(a[0]),a[1].v)};
