@@ -101,17 +101,19 @@
   .empty{color:var(--muted);padding:14px;text-align:center}
   #ver{position:fixed;top:8px;left:10px;z-index:5;font:11px var(--mono);
     color:rgba(255,255,255,.35);pointer-events:none;user-select:none;letter-spacing:.02em}
-  .bgtoggle{position:fixed;right:16px;bottom:16px;z-index:6;cursor:pointer}
+  .bgtoggle{position:fixed;right:20px;bottom:22px;z-index:10;cursor:pointer;display:inline-flex;
+    padding:7px;border-radius:999px;background:rgba(8,12,24,.6);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 4px 16px rgba(0,0,0,.55)}
   .bgtoggle input{position:absolute;opacity:0;width:0;height:0}
-  .bgtoggle .sw{width:48px;height:27px;background:rgba(120,130,150,.95);
-    box-shadow:0 3px 12px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.5)}
+  .bgtoggle .sw{width:48px;height:27px;background:rgba(150,160,180,.95);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.5)}
   .bgtoggle .sw::after{width:21px;height:21px;top:3px;left:3px;box-shadow:0 1px 3px rgba(0,0,0,.4)}
   .bgtoggle input:checked+.sw{background:#ff5a1f}
   .bgtoggle input:checked+.sw::after{transform:translateX(21px)}
 </style>
 </head>
 <body>
-<div id="ver">v1.5.0</div>
+<div id="ver">v1.5.1</div>
 <label class="bgtoggle"><input type="checkbox" id="bgSwitch"><span class="sw"></span></label>
 <div class="aurora" id="aurora"></div>
 <div class="wrap">
@@ -311,7 +313,7 @@ $('reset').onclick=(e)=>{
 };
 
 /* ---------- 버전 표시(좌상단) — 배포마다 이 값만 올림 ---------- */
-const VER='v1.5.0';
+const VER='v1.5.1';
 $('ver').textContent=VER;
 
 /* ---------- 배경: 오로라 ↔ 라바 무드등 (우하단 토글, localStorage 저장) ---------- */
