@@ -302,16 +302,9 @@ $('reset').onclick=(e)=>{
   flash(e.currentTarget,'초기화됨');
 };
 
-/* ---------- 버전 표시(좌상단): 최신 커밋 해시+시각 자동 반영 ---------- */
-fetch('https://api.github.com/repos/hannimman/oracle-var-resolver/commits/main?_='+Date.now())
-  .then(r=>r.json())
-  .then(c=>{
-    const sha=(c.sha||'').slice(0,7);
-    const d=new Date(c.commit.committer.date);
-    const p=n=>String(n).padStart(2,'0');
-    const ts=`${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-    $('ver').textContent=`hannim · ${sha} · ${ts}`;
-  }).catch(()=>{});
+/* ---------- 버전 표시(좌상단) — 배포마다 이 값만 올림 ---------- */
+const VER='hannim_v1.0';
+$('ver').textContent=VER;
 
 /* ---------- 오로라: 여러 빛 덩어리가 제각각 떠다니고 숨쉬듯 — 몽환적 ---------- */
 (()=>{
