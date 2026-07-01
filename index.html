@@ -6,44 +6,44 @@
 <title>SQL 변수 치환기</title>
 <style>
   :root{
-    --ink:#e7ecf7; --muted:#98a2ba;
-    --line:rgba(255,255,255,.14); --line2:rgba(255,255,255,.08);
-    --accent:#6d8bff; --accent-d:#5a76ef;
+    --ink:#232b3a; --muted:#6b7488;
+    --line:#e5e9f2; --line2:#eef1f7;
+    --accent:#4f6ef7; --accent-d:#3b56d6;
     --mono:ui-monospace,SFMono-Regular,Consolas,"Courier New",monospace;
-    --radius:12px; --shadow:0 12px 40px rgba(0,0,0,.4);
+    --radius:12px; --shadow:0 12px 40px rgba(40,50,90,.15);
   }
   *{box-sizing:border-box}
   html,body{min-height:100%}
   body{margin:0;color:var(--ink);
     font:14px/1.6 system-ui,"Segoe UI",-apple-system,"Malgun Gothic",sans-serif;
     padding:28px 16px;background:#070b18;}
-  /* 오로라 배경: 여러 빛 덩어리가 각자 떠다니며 숨쉬듯 — 몽환적 (JS로 transform) */
+  /* 오로라 배경: 어두운 바탕 위 진한 빛, 각자 떠다니며 숨쉬듯 — 몽환적 (JS로 transform) */
   .aurora{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;
     filter:blur(70px) saturate(1.35)}
   .aurora .blob{position:absolute;border-radius:50%;mix-blend-mode:screen;
     will-change:transform;opacity:.9}
   .wrap{max-width:1080px;margin:0 auto}
 
-  .card{background:rgba(17,22,42,.55);backdrop-filter:blur(18px) saturate(1.3);
-    -webkit-backdrop-filter:blur(18px) saturate(1.3);
-    border:1px solid rgba(255,255,255,.12);border-radius:var(--radius);
-    box-shadow:0 12px 40px rgba(0,0,0,.38);padding:18px;margin-bottom:16px}
+  .card{background:rgba(255,255,255,.82);backdrop-filter:blur(18px) saturate(1.6);
+    -webkit-backdrop-filter:blur(18px) saturate(1.6);
+    border:1px solid rgba(255,255,255,.85);border-radius:var(--radius);
+    box-shadow:0 12px 40px rgba(40,50,90,.14);padding:18px;margin-bottom:16px}
 
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   @media(max-width:720px){.grid{grid-template-columns:1fr}}
   label{display:block;font-weight:600;font-size:13px;margin-bottom:6px}
   label .hint{font-weight:400;color:var(--muted)}
   textarea{width:100%;font:12.5px/1.5 var(--mono);color:var(--ink);
-    background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}
+    background:rgba(255,255,255,.85);border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}
   textarea:focus,input:focus{outline:none;border-color:var(--accent);
-    box-shadow:0 0 0 3px rgba(109,139,255,.28);background:rgba(255,255,255,.09)}
-  textarea::placeholder{color:#6f7b96}
-  #out{background:rgba(3,7,18,.55);color:#cfe0ff;border:1px solid var(--line);white-space:pre;overflow:auto}
+    box-shadow:0 0 0 3px rgba(79,110,247,.18);background:#fff}
+  textarea::placeholder{color:#9aa3b5}
+  #out{background:#0f1729;color:#d6e2ff;border:1px solid #0f1729;white-space:pre;overflow:auto}
 
   .actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
   .opt{display:flex;align-items:center;gap:6px;font-weight:400;font-size:12.5px;color:var(--muted);cursor:pointer}
   .opt input{position:absolute;opacity:0;width:0;height:0}
-  .sw{position:relative;flex:0 0 auto;width:34px;height:18px;border-radius:999px;background:rgba(255,255,255,.22);transition:.2s}
+  .sw{position:relative;flex:0 0 auto;width:34px;height:18px;border-radius:999px;background:#c7cdd8;transition:.2s}
   .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
     background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:.2s}
   .opt input:checked+.sw{background:var(--accent)}
@@ -51,53 +51,53 @@
   .opt input:focus-visible+.sw{box-shadow:0 0 0 3px rgba(79,110,247,.3)}
   .spacer{flex:1}
   button{font:600 13.5px system-ui,sans-serif;padding:9px 18px;border-radius:9px;
-    border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--ink);cursor:pointer;transition:.12s}
-  button:hover{background:rgba(255,255,255,.15)}
+    border:1px solid var(--line);background:rgba(255,255,255,.9);color:var(--ink);cursor:pointer;transition:.12s}
+  button:hover{background:#f1f4f9}
   button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
   button.primary:hover{background:var(--accent-d)}
   button:active{transform:translateY(1px)}
-  button.flash{background:#2fa96a;border-color:#2fa96a;color:#fff}
+  button.flash{background:#1f7a48;border-color:#1f7a48;color:#fff}
 
-  table{border-collapse:separate;border-spacing:0;width:100%;background:rgba(9,13,28,.4);
+  table{border-collapse:separate;border-spacing:0;width:100%;background:#fff;
     border:1px solid var(--line);border-radius:10px;overflow:hidden}
   tr+tr td{border-top:1px solid var(--line2)}
   td{padding:7px 10px;vertical-align:middle}
-  td.name{font-family:var(--mono);font-size:12.5px;white-space:nowrap;background:rgba(255,255,255,.05);
-    color:#cdd6ea;border-right:1px solid var(--line2);width:1%}
+  td.name{font-family:var(--mono);font-size:12.5px;white-space:nowrap;background:#fafbfe;
+    color:#334;border-right:1px solid var(--line2);width:1%}
   td.tag{width:1%;white-space:nowrap;border-right:1px solid var(--line2)}
   .chip{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;
-    background:rgba(255,255,255,.1);color:#c3ccdf}
-  .chip.input{background:rgba(90,130,255,.22);color:#aac2ff}
-  .chip.derived{background:rgba(45,180,110,.22);color:#8fe6b5}
-  .chip.manual{background:rgba(230,150,60,.22);color:#f3c48c}
-  .chip.query{background:rgba(230,90,150,.22);color:#f7aaca}
+    background:#eef1f6;color:#5b6675}
+  .chip.input{background:#e6f0ff;color:#2f5fd0}
+  .chip.derived{background:#e7f6ee;color:#1f7a48}
+  .chip.manual{background:#fff3e0;color:#b25e00}
+  .chip.query{background:#fdeaf0;color:#b53a6b}
   input.val{width:100%;font:12.5px var(--mono);color:var(--ink);
-    border:1px solid var(--line);border-radius:7px;padding:6px 8px;background:rgba(255,255,255,.06)}
-  input.val.err{border-color:#ff6b70;background:rgba(255,80,90,.12)}
-  input.val::placeholder{color:#7c869e}
+    border:1px solid var(--line);border-radius:7px;padding:6px 8px;background:#fff}
+  input.val.err{border-color:#e5484d;background:#fff5f5}
+  input.val::placeholder{color:#aab2bd}
   .addvar{position:relative;display:inline-block;margin-left:7px;color:var(--accent);
     font-weight:700;font-size:15px;cursor:pointer;user-select:none}
   .addvar .popup{display:none;position:absolute;top:100%;left:0;z-index:20;width:270px;
-    background:rgba(20,26,46,.97);backdrop-filter:blur(10px);
+    background:rgba(255,255,255,.97);backdrop-filter:blur(8px);
     border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
     padding:12px;font-weight:400;color:var(--ink);cursor:default}
   .addvar:hover .popup,.addvar .popup:hover{display:block}
-  .popup h4{margin:8px 0 6px;font-size:12px;font-weight:600;color:#c3ccdf}
+  .popup h4{margin:8px 0 6px;font-size:12px;font-weight:600;color:#46506a}
   .popup h4:first-child{margin-top:0}
   .popup .pinput{display:flex;gap:6px}
-  .popup .pinput input{flex:1;font:12px var(--mono);color:var(--ink);background:rgba(255,255,255,.06);
+  .popup .pinput input{flex:1;font:12px var(--mono);color:var(--ink);background:#fff;
     border:1px solid var(--line);border-radius:6px;padding:5px 7px}
   .popup .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
   .popup .chips:empty{display:none}
-  .popup .c{display:inline-flex;align-items:center;background:rgba(255,255,255,.1);border-radius:999px;
-    padding:2px 4px 2px 9px;font:600 11px var(--mono);color:#c3ccdf}
-  .popup .c b{cursor:pointer;color:#8892a8;padding:0 4px;font-size:13px;line-height:1}
-  .popup .c b:hover{color:#ff6b70}
+  .popup .c{display:inline-flex;align-items:center;background:#eef1f6;border-radius:999px;
+    padding:2px 4px 2px 9px;font:600 11px var(--mono);color:#46506a}
+  .popup .c b{cursor:pointer;color:#9aa3b2;padding:0 4px;font-size:13px;line-height:1}
+  .popup .c b:hover{color:#e5484d}
   .popup .hint{display:block;margin-top:8px;font-size:11px;color:var(--muted)}
   .quick{display:flex;gap:5px;margin-top:5px}
   button.mini{font:600 11px system-ui,sans-serif;padding:3px 9px;border-radius:6px;
-    border:1px solid var(--line);background:rgba(255,255,255,.08);color:#c3ccdf}
-  button.mini:hover{background:rgba(255,255,255,.16)}
+    border:1px solid var(--line);background:#f1f4f9;color:#46506a}
+  button.mini:hover{background:#e6ecf5}
   .empty{color:var(--muted);padding:14px;text-align:center}
 </style>
 </head>
@@ -294,7 +294,7 @@ $('reset').onclick=(e)=>{
     const n=document.createElement('div');n.className='blob';
     n.style.left=b.x+'%';n.style.top=b.y+'%';
     n.style.width=b.s+'vw';n.style.height=b.s+'vw';
-    n.style.background=`radial-gradient(circle at center, rgba(${b.c},.95), rgba(${b.c},0) 70%)`;
+    n.style.background=`radial-gradient(circle at center, rgba(${b.c},.9), rgba(${b.c},0) 70%)`;
     el.appendChild(n);return n;
   });
   if(matchMedia('(prefers-reduced-motion:reduce)').matches){ // 모션 최소화: 가운데 정렬만, 정지
