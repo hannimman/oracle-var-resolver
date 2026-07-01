@@ -60,6 +60,9 @@
   button.primary:hover{background:var(--accent-d)}
   button:active{transform:translateY(1px)}
   button.flash{background:#1f7a48;border-color:#1f7a48;color:#fff}
+  /* 텍스트가 바뀌어도(복사됨 ✓ / 초기화됨) 폭·높이 고정 → UI 안 밀림 */
+  #copy,#reset{height:36px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden}
+  #copy{width:108px} #reset{width:90px}
 
   table{border-collapse:separate;border-spacing:0;width:100%;background:#fff;
     border:1px solid var(--line);border-radius:10px;overflow:hidden}
@@ -116,7 +119,7 @@
 </style>
 </head>
 <body>
-<div id="ver">v1.5.2</div>
+<div id="ver">v1.5.3</div>
 <label class="bgtoggle"><input type="checkbox" id="bgSwitch"><span class="sw"></span></label>
 <div class="aurora" id="aurora"></div>
 <div id="lavaGlow"></div>
@@ -297,9 +300,26 @@ $('convert').onclick=()=>{
   $('out').value=res;
 };
 $('stripBlank').onchange=()=>{if($('out').value!=='')$('convert').click();}; // 토글 시 결과 갱신
+// 결과창이 사진처럼 축소·회전하며 복사 버튼 속으로 쏙 들어가는 애니메이션
+function copyFly(){
+  const o=$('out'), btn=$('copy'); if(!o.value)return;
+  const r=o.getBoundingClientRect(), b=btn.getBoundingClientRect();
+  const g=document.createElement('div');
+  g.textContent=o.value.slice(0,4000);
+  g.style.cssText=`position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;`
+    +`background:#0f1729;color:#d6e2ff;font:12.5px/1.5 ui-monospace,Consolas,monospace;padding:10px;`
+    +`white-space:pre;overflow:hidden;border-radius:8px;box-shadow:0 14px 44px rgba(0,0,0,.5);`
+    +`z-index:60;pointer-events:none;transform-origin:center center;`
+    +`transition:transform .55s cubic-bezier(.45,.05,.15,1), opacity .55s ease-in;`;
+  document.body.appendChild(g);
+  const dx=(b.left+b.width/2)-(r.left+r.width/2), dy=(b.top+b.height/2)-(r.top+r.height/2);
+  requestAnimationFrame(()=>{ g.style.transform=`translate(${dx}px,${dy}px) scale(.03) rotate(-6deg)`; g.style.opacity='0'; });
+  setTimeout(()=>g.remove(),600);
+}
+
 $('copy').onclick=(e)=>{
   const btn=e.currentTarget, o=$('out'); if(!o.value)return; // btn은 동기로 잡아둠(콜백에선 currentTarget이 null)
-  const ok=()=>flash(btn,'복사됨 ✓');
+  const ok=()=>{copyFly();flash(btn,'복사됨 ✓');};
   const legacy=()=>{ // 클립보드 API 거부/없을 때 폴백
     o.focus();o.select();
     let done=false;try{done=document.execCommand('copy');}catch(_){}
@@ -317,7 +337,7 @@ $('reset').onclick=(e)=>{
 };
 
 /* ---------- 버전 표시(좌상단) — 배포마다 이 값만 올림 ---------- */
-const VER='v1.5.2';
+const VER='v1.5.3';
 $('ver').textContent=VER;
 
 /* ---------- 배경: 오로라 ↔ 라바 무드등 (우하단 토글, localStorage 저장) ---------- */
