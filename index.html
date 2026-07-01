@@ -116,7 +116,7 @@
         <div class="chips" id="cvNameList"></div>
         <div class="hint">기본 P_ / V_ 는 항상 포함됩니다.</div>
       </div></span></label>
-      <textarea id="query" rows="7" placeholder="변수(V_..., P_...)가 들어간 쿼리를 붙여넣기"></textarea>
+      <textarea id="query" rows="7" placeholder="변수 쿼리를 붙여넣기 (V_SQL := V_SQL || '...' 형태의 동적쿼리도 자동 감지)"></textarea>
     </div>
     <div>
       <label>② 변수 초기화 블록 <span class="hint">— 비우면 쿼리에서 자동 추출</span></label>
@@ -141,8 +141,9 @@
 </div>
 
 <script>document.write('<script src="app.js?v='+Date.now()+'"><\/script>');</script>
+<script>document.write('<script src="dynamic.js?v='+Date.now()+'"><\/script>');</script>
 <script>
-let ASSIGNS=[], FREE=[];
+let ASSIGNS=[], FREE=[], MODE='basic', PROGRAM=null;
 const $=id=>document.getElementById(id);
 
 /* ---------- 사용자 등록 변수(프리픽스/이름) — localStorage ---------- */
@@ -170,17 +171,30 @@ $('cvPrefix').onkeydown=e=>{if(e.key==='Enter')$('cvPrefixAdd').onclick();};
 $('cvName').onkeydown=e=>{if(e.key==='Enter')$('cvNameAdd').onclick();};
 renderChips();
 
+// 동적쿼리 자동 감지: := 대입 + (|| 연결 또는 IF..THEN)
+function isDynamic(q){return /:=/.test(q) && (/\|\|/.test(q) || /\bIF\b[\s\S]*\bTHEN\b/i.test(q));}
+
 $('analyze').onclick=()=>{
-  ASSIGNS=parseInit($('init').value);
-  FREE=freeVars(ASSIGNS);
-  const known=new Set([...FREE,...ASSIGNS.map(a=>a.name)].map(s=>s.toLowerCase()));
-  const prefixes=['P_','V_',...CUSTOM.prefixes];
-  const qVars=scanVars($('query').value,prefixes,CUSTOM.names).filter(v=>!known.has(v.toLowerCase())); // 초기화블록에 없는, 쿼리에만 있는 변수(대소문자 무시)
+  const q=$('query').value;
   const body=$('varsBody'); body.innerHTML='';
-  for(const name of FREE) body.appendChild(varRow(name,'입력','input',{free:true}));
-  for(const a of ASSIGNS) body.appendChild(varRow(a.name,a.expr?'파생':'수동입력',a.expr?'derived':'manual',a.expr?{}:{manual:true}));
-  for(const name of qVars) body.appendChild(varRow(name,'쿼리','query',{verbatim:true}));
-  if(!FREE.length&&!ASSIGNS.length&&!qVars.length){body.innerHTML='<tr><td class="empty">변수를 찾지 못했어요. 초기화 블록을 넣거나, 쿼리에 P_/V_ 형태 변수가 있는지 확인하세요.</td></tr>';}
+  if(isDynamic(q)){
+    MODE='dynamic';
+    const r=parseProgram(q); PROGRAM=r.program; FREE=r.freeVars; ASSIGNS=[];
+    const defs=condDefaults(PROGRAM); // IF 조건 값으로 기본값
+    for(const name of FREE) body.appendChild(varRow(name,'동적','input',{free:true,value:defs[name]||''}));
+    if(!FREE.length) body.innerHTML='<tr><td class="empty">동적쿼리에서 입력할 변수를 찾지 못했어요.</td></tr>';
+  }else{
+    MODE='basic'; PROGRAM=null;
+    ASSIGNS=parseInit($('init').value);
+    FREE=freeVars(ASSIGNS);
+    const known=new Set([...FREE,...ASSIGNS.map(a=>a.name)].map(s=>s.toLowerCase()));
+    const prefixes=['P_','V_',...CUSTOM.prefixes];
+    const qVars=scanVars(q,prefixes,CUSTOM.names).filter(v=>!known.has(v.toLowerCase())); // 초기화블록에 없는, 쿼리에만 있는 변수(대소문자 무시)
+    for(const name of FREE) body.appendChild(varRow(name,'입력','input',{free:true}));
+    for(const a of ASSIGNS) body.appendChild(varRow(a.name,a.expr?'파생':'수동입력',a.expr?'derived':'manual',a.expr?{}:{manual:true}));
+    for(const name of qVars) body.appendChild(varRow(name,'쿼리','query',{verbatim:true}));
+    if(!FREE.length&&!ASSIGNS.length&&!qVars.length){body.innerHTML='<tr><td class="empty">변수를 찾지 못했어요. 초기화 블록을 넣거나, 쿼리에 P_/V_ 형태 변수가 있는지 확인하세요.</td></tr>';}
+  }
   $('varsBox').hidden=false;
   recompute();
   body.querySelectorAll('input.val').forEach(inp=>inp.addEventListener('input',()=>{
@@ -195,7 +209,7 @@ function varRow(name,tag,cls,opts){
   tr.innerHTML='<td class="name">'+name+'</td><td class="tag"><span class="chip '+cls+'">'+tag+'</span></td>';
   const td=document.createElement('td');
   const inp=document.createElement('input');
-  inp.className='val'; inp.value=''; inp.dataset.name=name;
+  inp.className='val'; inp.value=opts.value||''; inp.dataset.name=name;
   if(opts.free) inp.dataset.free='1';
   if(opts.manual){inp.dataset.manual='1';inp.placeholder='테이블 조회값 — 직접 입력';}
   if(opts.verbatim){inp.dataset.verbatim='1';inp.placeholder="치환할 값 그대로: '202606' 또는 숫자/TO_DATE(...)";}
@@ -250,12 +264,18 @@ function flash(btn,msg){
 }
 
 $('convert').onclick=()=>{
-  const vars=[];
-  document.querySelectorAll('input.val').forEach(i=>{
-    const literal=i.dataset.free?("'"+unq(i.value).replace(/'/g,"''")+"'"):i.value; // 입력변수만 자동 따옴표
-    if(literal!=='')vars.push({name:i.dataset.name,literal});
-  });
-  let res=substitute($('query').value,vars);
+  let res;
+  if(MODE==='dynamic'){
+    const vars={}; document.querySelectorAll('input.val').forEach(i=>vars[i.dataset.name]=i.value);
+    const acc=assemble(PROGRAM,vars); res=acc[mainVar(acc)]||'';
+  }else{
+    const vars=[];
+    document.querySelectorAll('input.val').forEach(i=>{
+      const literal=i.dataset.free?("'"+unq(i.value).replace(/'/g,"''")+"'"):i.value; // 입력변수만 자동 따옴표
+      if(literal!=='')vars.push({name:i.dataset.name,literal});
+    });
+    res=substitute($('query').value,vars);
+  }
   if($('stripBlank').checked) res=res.split('\n').filter(l=>l.trim()!=='').join('\n'); // 빈 줄 제거
   $('out').value=res;
 };
@@ -275,7 +295,7 @@ $('copy').onclick=(e)=>{
 $('reset').onclick=(e)=>{
   $('query').value='';$('init').value='';$('out').value='';
   $('varsBody').innerHTML='';$('varsBox').hidden=true;
-  ASSIGNS=[];FREE=[];
+  ASSIGNS=[];FREE=[];MODE='basic';PROGRAM=null;
   flash(e.currentTarget,'초기화됨');
 };
 
