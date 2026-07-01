@@ -46,6 +46,13 @@ chk('Y: N분기(DEPT_CD) 미포함', !r.includes('DEPT_CD'));
 r=assemble(program,{ISTOTAL:'Y',P_PROC_YM:'202606',P_TEAM_CD:'T1',P_PART_CD:'PP'}).V_SQL;
 chk("Y: PART_CD LIKE '%PP%' 포함", r.includes("PART_CD LIKE '%PP%'"));
 
+// 값에 따옴표째 입력해도 (습관) — 겹따옴표 없이 정상 처리
+r=assemble(program,{ISTOTAL:"'Y'",P_PROC_YM:"'202606'",P_TEAM_CD:"'T1'",P_PART_CD:''}).V_SQL;
+console.log('  [따옴표째] '+r.replace(/\n/g,' | '));
+chk("따옴표째: Y분기 선택됨", r.includes('TEAM_CD'));
+chk("따옴표째: 삽입값 겹따옴표 아님('202606')", r.includes("PROC_YM = '202606'") && !r.includes("''202606''"));
+chk("따옴표째: TEAM '%T1%' (겹따옴표 아님)", r.includes("LIKE '%T1%'"));
+
 // 조건 평가 단위 테스트
 chk("cond: IN 매칭",  evalCond("P_CLSF_CD IN('20','30')",{P_CLSF_CD:'20'})===true);
 chk("cond: IN 불일치", evalCond("P_CLSF_CD IN('20','30')",{P_CLSF_CD:'10'})===false);

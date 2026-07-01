@@ -113,9 +113,12 @@ function collectVars(program,accVars){
 }
 
 // 조건 평가: =, <>/!=, IN, NOT IN, IS [NOT] NULL, LIKE, AND/OR, 괄호
+// 사용자가 습관적으로 넣은 양끝 작은따옴표 한 쌍 제거 (따옴표는 원본/도구가 붙임)
+function stripq(s){s=(s==null?'':String(s)).trim();return s.length>=2&&s[0]==="'"&&s.endsWith("'")?s.slice(1,-1):s;}
+
 function evalCond(raw,vars){
   const tk=lex(raw);let p=0;
-  const val=name=>{const k=Object.keys(vars).find(x=>x.toLowerCase()===name.toLowerCase());return k?vars[k]:'';};
+  const val=name=>{const k=Object.keys(vars).find(x=>x.toLowerCase()===name.toLowerCase());return k?stripq(vars[k]):'';};
   const unq=s=>s.slice(1,-1).replace(/''/g,"'");
   const wU=up=>tk[p]&&tk[p].k==='word'&&tk[p].v.toUpperCase()===up;
   function orE(){let v=andE();while(wU('OR')){p++;const r=andE();v=v||r;}return v;}
@@ -150,7 +153,7 @@ function assemble(program,vars){
     const env={};
     for(const t of lex(expr)) if(t.k==='word'&&!(t.v in env)){
       const kv=Object.keys(vars).find(x=>x.toLowerCase()===t.v.toLowerCase());
-      env[t.v]={t:'str',v: kv?vars[kv] : (t.v in acc?acc[t.v]:'')};
+      env[t.v]={t:'str',v: kv?stripq(vars[kv]) : (t.v in acc?acc[t.v]:'')}; // 값 입력 시 넣은 따옴표 제거
     }
     try{const r=ev(expr,env);return r&&r.v!==undefined?String(r.v):'';}catch(e){return '[[식 평가 실패: '+e.message+']]';}
   }
